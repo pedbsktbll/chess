@@ -16,13 +16,14 @@ namespace Chess
 
 			XmlTextReader reader = new XmlTextReader( fileName );
 			bool firstRow = false;
+			int playerID = 1;
             while( reader.Read() )
             {
 				if( reader.NodeType != XmlNodeType.Element || !reader.Name.Equals( "Row" ) )
 					continue;
 				reader.Read();
 				if( firstRow )
-					players.Add( new Player( reader ) );
+					players.Add( new Player( reader, playerID++ ) );
 				else
 				{
 					for( ; !reader.Name.Equals( "Row" ); reader.Read() ) ;
@@ -34,16 +35,34 @@ namespace Chess
 			players.Sort( Player.idCompare );
 			foreach( Player p in players )
 				foreach( int beatenPlayerID in p.getBeatenPlayers() )
-					p.beatenPlayersRecord += players[beatenPlayerID-1].getNumWins();
+					p.beatenPlayersRecord += players[beatenPlayerID - 1].getScore();
 
 			updateRankings();
 		}
 
 		private void updateRankings()
 		{
+			int[] idToRank = new int[players.Count+1];
+
 			players.Sort();
-			for( int i = 0; i < players.Count; i++ )
-				players[i].setRank( i + 1 );
+			for (int i = 0; i < players.Count; i++)
+			{
+				idToRank[players[i].getID()] = i + 1;
+				players[i].setRank(i + 1);
+			}
+
+			foreach( Player p in players )
+			{
+				List<string> weeks = p.getWeeks();
+				for (int i = 0; i < weeks.Count; i++)
+				{
+					string str = weeks[i];
+					int num;
+					if( Int32.TryParse( str.Substring(1), out num ) )
+						weeks[i] = str.Substring(0, 1) + idToRank[num];
+				}
+			}
+
 			return;
 		}
 
@@ -51,13 +70,13 @@ namespace Chess
 		{
 //			updateRankings();
 			List<List<Player>> mutExclLists = new List<List<Player>>();
-			int currWinCt = -1;
+			double currWinCt = -1;
 			foreach( Player p in players )
 			{
-				if( p.getNumWins() != currWinCt )
+				if (p.getScore() != currWinCt)
 				{
 					mutExclLists.Add( new List<Player>() );
-					currWinCt = p.getNumWins();
+					currWinCt = p.getScore();
 				}
 				mutExclLists[mutExclLists.Count - 1].Add( p );
 			}
@@ -143,6 +162,10 @@ namespace Chess
 
 								players[l].setNextMatchup( null );
 								list.Add( players[l] );
+								j = 0;
+								k = list.Count / 2;
+								incrementer = 1;
+								break;
 							}
 						}
 					}
@@ -177,7 +200,7 @@ namespace Chess
 
 		public void printNewFile( String fileName )
 		{
-			int cols = 4 + players[0].getNumWeeks();
+			int cols = 4 + 8;//players[0].getNumWeeks();
 			int rows = players.Count + 1;
 			System.IO.StreamWriter fileWriter = new System.IO.StreamWriter( fileName );
 			fileWriter.Write( "<?xml version=\"1.0\"?>\r\n" +
@@ -192,10 +215,17 @@ namespace Chess
 //			"\" x:FullColumns=\"1\" x:FullRows=\"1\">\r\n" +
 			   "\r\n<Row>\r\n" +
 				"\t<Cell><Data ss:Type=\"String\">Rank</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">ID</Data></Cell>\r\n" +
+//				"\t<Cell><Data ss:Type=\"String\">ID</Data></Cell>\r\n" +
 				"\t<Cell><Data ss:Type=\"String\">Name</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Office</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Week 1</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Total Points</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 1</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 2</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 3</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 4</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 5</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 6</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 7</Data></Cell>\r\n" +
+				"\t<Cell><Data ss:Type=\"String\">Round 8</Data></Cell>\r\n" +
 			   "</Row>\r\n" );
 
 			foreach( Player p in players )

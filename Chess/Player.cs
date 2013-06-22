@@ -12,39 +12,49 @@ namespace Chess
 		private int id;
 		private int rank;
 		private String name;
-		private String office;
+//		private String office;
 		private List<String> weeks;
 		private List<int> playersBeaten;
-		private List<int> playersLost;
-		private List<int> playersTied;
+// 		private List<int> playersLost;
+// 		private List<int> playersTied;
 		private double score;
-		public int beatenPlayersRecord;
+		public double beatenPlayersRecord;
 		private Player nextMatchup;
 
 //		private List<Player> preferredPlayers;
 
-		public Player( XmlTextReader reader )
+		public Player( XmlTextReader reader, int id )
         {
 			weeks = new List<String>();
 			playersBeaten = new List<int>();
-			playersLost = new List<int>();
-			playersTied = new List<int>();
+// 			playersLost = new List<int>();
+// 			playersTied = new List<int>();
 			score = 0;
 			beatenPlayersRecord = 0;
 			nextMatchup = null;
 //			preferredPlayers = new List<Player>();
 
+			this.id = id;
+
 			for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
 			rank = Int32.Parse( reader.Value );
 
-			for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
-			id = Int32.Parse( reader.Value );
+// 			for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
+// 			id = Int32.Parse( reader.Value );
 
 			for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
+			int temp;
+			if (Int32.TryParse(reader.Value, out temp))
+			{
+				this.id = temp;
+				for (reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read()) ;
+			}
 			name = reader.Value;
 
+// 			for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
+// 			office = reader.Value;
 			for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
-			office = reader.Value;
+//			score = Double.Parse(reader.Value);
 
 			for( reader.Read(); !reader.Name.Equals( "Row" ); reader.Read() )
 			{
@@ -57,14 +67,15 @@ namespace Chess
 				if( week.StartsWith( "W" ) )
 				{
 					score++;
-					playersBeaten.Add( Int32.Parse( week.Substring( 1 ) ) );
+					if( week.Length > 1 )
+						playersBeaten.Add( Int32.Parse( week.Substring( 1 ) ) );
 				}
-				else if( week.StartsWith( "L" ) )
-					playersLost.Add( Int32.Parse( week.Substring( 1 ) ) );
+// 				else if( week.StartsWith( "L" ) )
+// 					playersLost.Add( Int32.Parse( week.Substring( 1 ) ) );
 				else if( week.StartsWith( "T" ) )
 				{
 					score += 0.5;
-					playersTied.Add( Int32.Parse( week.Substring( 1 ) ) );
+/*					playersTied.Add( Int32.Parse( week.Substring( 1 ) ) );*/
 				}
 				else if( week.Equals( "BYE" ) )
 					score += 0.5;
@@ -75,8 +86,9 @@ namespace Chess
 		{
 			if( other == null )
 				return false;
-			foreach( String s in weeks )
-				if( s.EndsWith(other.id.ToString()) ) return true;
+			foreach (String s in weeks)
+			//				if( s.EndsWith(other.id.ToString()) ) return true;
+				if (s.Substring(1).Equals(other.rank.ToString())) return true;
 			return false;
 		}
 
@@ -118,15 +130,27 @@ namespace Chess
 //				return 0;
 //				int thisRec = beatenPlayersRecord();
 //				int otherRec = p.beatenPlayersRecord();
+
+	/*			foreach( int i in this.playersBeaten )
+				{
+					if (p.id == i)
+						return -1;
+				}
+				foreach (int i in p.playersBeaten)
+				{
+					if (this.id == i)
+						return 1;
+				}
+*/
 				if( beatenPlayersRecord > p.beatenPlayersRecord )
 					return -1;
 				else if( p.beatenPlayersRecord > beatenPlayersRecord )
 					return 1;
 				else
 				{
-					if( rank > p.rank )
+					if( rank < p.rank )
 						return -1;
-					else if( p.rank > rank )
+					else if( p.rank < rank )
 						return 1;
 					else
 						return 0;
@@ -134,7 +158,7 @@ namespace Chess
 			}
 		}
 
-		public int getScore()
+		public double getScore()
 		{
 			return score;
 		}
@@ -167,6 +191,16 @@ namespace Chess
 			return weeks.Count;
 		}
 
+		public int getID()
+		{
+			return id;
+		}
+
+		public List<string> getWeeks()
+		{
+			return weeks;
+		}
+
 		public string ToString()
 		{
 			return "#" + rank + " " + name;
@@ -175,12 +209,29 @@ namespace Chess
 		public string writeXML()
 		{
 			string retString = "<Row>\r\n\t<Cell><Data ss:Type=\"Number\">" + rank + "</Data></Cell>\r\n"+
-			"\t<Cell><Data ss:Type=\"Number\">" + id + "</Data></Cell>\r\n" +
+//			"\t<Cell><Data ss:Type=\"Number\">" + id + "</Data></Cell>\r\n" +
 			"\t<Cell><Data ss:Type=\"String\">" + name + "</Data></Cell>\r\n" +
-			"\t<Cell><Data ss:Type=\"String\">" + office + "</Data></Cell>\r\n";
+			"\t<Cell><Data ss:Type=\"Number\">" + score + "</Data></Cell>\r\n";
 
-			foreach( String s in weeks )
-				retString+="\t<Cell><Data ss:Type=\"String\">" + s + "</Data></Cell>\r\n";
+			foreach (String s in weeks)
+			{
+/*				retString += "\t<Cell><Data ss:Type=\"String\">" + s.Substring(0, 1);
+				int oppID = -1;
+
+				try
+				{
+					oppID = Int32.Parse(s.Substring(1));
+				}
+				catch (System.Exception ex)
+				{
+					
+				}
+
+				if( oppID != -1 )
+					retString += 
+*/				
+				retString += "\t<Cell><Data ss:Type=\"String\">" + s + "</Data></Cell>\r\n";
+			}
 			retString+="</Row>\r\n";
 			return retString;
 		}
