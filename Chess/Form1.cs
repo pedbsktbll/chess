@@ -36,21 +36,62 @@ namespace Chess
 
 		private void button2_Click( object sender, EventArgs e )
 		{
-			if( fileName == null || fileName.Equals( "" ) )
+			if( fileName == null || fileName.Equals( "" ) || !File.Exists(fileName) )
 			{
 				MessageBox.Show( "Error! Must select XML file!", "Select File", MessageBoxButtons.OK, MessageBoxIcon.Error );
 				return;
 			}
 
-			Tournament T = new Tournament( fileName );
-			if( File.Exists( fileName + ".bkp" ) )
-				File.Delete( fileName + ".bkp" );
-			File.Move( fileName, fileName + ".bkp" );
+            // Check if file open or otherwise in use:
+			for( bool tryAgain = true; tryAgain; )
+			{
+				tryAgain = false;
+				FileStream stream = null, stream2 = null;
+				try
+				{
+					FileInfo file = new FileInfo(fileName);
+					stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+					if( File.Exists(fileName + ".bkp") )
+					{
+						FileInfo file2 = new FileInfo(fileName + ".bkp");
+						stream2 = file2.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+					}
+				}
+				catch( IOException )
+				{
+					if( MessageBox.Show("Error! Please close all instances of the file and try again", "File Open", MessageBoxButtons.RetryCancel, MessageBoxIcon.Error) 
+						== DialogResult.Cancel )
+						return;
+					tryAgain = true;
+				}
+				finally
+				{
+					if( stream != null )
+						stream.Close();
+					if( stream2 != null )
+						stream2.Close();
+				}
+			}
 
-			T.printNewFile( fileName );
-			T.GenerateMatchups();
-			T.printMatchups( Directory.GetParent(fileName).FullName );
-			MessageBox.Show( "Success!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information );
+			try
+			{
+				Tournament T = new Tournament(fileName);
+				if( File.Exists(fileName + ".bkp") )
+					File.Delete(fileName + ".bkp");
+				File.Move(fileName, fileName + ".bkp");
+
+				T.printNewFile(fileName);
+				T.GenerateMatchups();
+				if( T.printMatchups(Directory.GetParent(fileName).FullName) )
+					MessageBox.Show("Success!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+				else
+					MessageBox.Show("Semi-Success...?", "Umm... Something didn't look right about those matchups. Might want to double check those...",
+						MessageBoxButtons.OK, MessageBoxIcon.Warning);
+			}
+			catch( System.Exception ex )
+			{
+				MessageBox.Show("Error! " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			}
 		}
     }
 }

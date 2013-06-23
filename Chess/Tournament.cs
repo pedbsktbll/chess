@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using System.Collections;
 
 namespace Chess
 {
@@ -14,24 +15,41 @@ namespace Chess
         {
 			players = new List<Player>();
 
-			XmlTextReader reader = new XmlTextReader( fileName );
-			bool firstRow = false;
-			int playerID = 1;
-            while( reader.Read() )
-            {
-				if( reader.NodeType != XmlNodeType.Element || !reader.Name.Equals( "Row" ) )
-					continue;
-				reader.Read();
-				if( firstRow )
-					players.Add( new Player( reader, playerID++ ) );
-				else
+			XmlTextReader reader = null;
+			try
+			{
+				reader = new XmlTextReader(fileName);
+				bool firstRow = false;
+				int playerID = 1;
+				while( reader.Read() )
 				{
-					for( ; !reader.Name.Equals( "Row" ); reader.Read() ) ;
-					firstRow = true;
+					if( reader.NodeType != XmlNodeType.Element || !reader.Name.Equals("Row") )
+						continue;
+					reader.Read();
+					if( firstRow )
+						players.Add(new Player(reader, playerID++));
+					else
+					{
+						for( ; !reader.Name.Equals("Row"); reader.Read() )
+						{
+							if( reader.NodeType == XmlNodeType.Text )
+								Player.columns.Add(reader.Value);
+						}
+						firstRow = true;
+					}
 				}
-            }
-			reader.Close();
-
+			}
+			catch( System.Exception )
+			{
+				throw new Exception("Invalid Doc Format!");
+			}
+			finally
+			{
+				if( reader != null )
+					reader.Close();
+			}
+			
+			// Sums the wins of all beaten players
 			players.Sort( Player.idCompare );
 			foreach( Player p in players )
 				foreach( int beatenPlayerID in p.getBeatenPlayers() )
@@ -44,17 +62,19 @@ namespace Chess
 		{
 			int[] idToRank = new int[players.Count+1];
 
+			// Sorts players by rank and updates their rank attribute
 			players.Sort();
-			for (int i = 0; i < players.Count; i++)
+			for( int i = 0; i < players.Count; i++ )
 			{
 				idToRank[players[i].getID()] = i + 1;
 				players[i].setRank(i + 1);
 			}
 
+			// Updates the rank of all players played to the new ranks
 			foreach( Player p in players )
 			{
 				List<string> weeks = p.getWeeks();
-				for (int i = 0; i < weeks.Count; i++)
+				for( int i = 0; i < weeks.Count; i++ )
 				{
 					string str = weeks[i];
 					int num;
@@ -181,58 +201,131 @@ namespace Chess
 			}
 		}
 
-		public void printMatchups(String dir)
+		public bool printMatchups(String dir)
 		{
 			System.IO.StreamWriter fileWriter = new System.IO.StreamWriter( dir + "\\newMatchups.txt" );
 			fileWriter.WriteLine( "Player(WHITE) vs. Player(BLACK)" );
-			List<Player> printed = new List<Player>();
+			Random rand = new Random((int)DateTime.Now.Ticks);
+
+			HashSet<int> printed = new HashSet<int>();
+			bool retVal = true;
 			foreach( Player p in players )
 			{
-				if( printed.Contains( p ) )
+				if( printed.Contains( p.getID() ) )
 					continue;
-				string output = p.ToString() + " vs. " + p.getNextMatchup().ToString();
+				int playAsWhite = rand.Next(1);
+				string output = (playAsWhite == 1 ? p : p.getNextMatchup()) + " vs. " + (playAsWhite == 1 ? p.getNextMatchup() : p);
 				fileWriter.WriteLine( output );
-				printed.Add( p );
-				printed.Add( p.getNextMatchup() );
+				retVal &= printed.Add( p.getID() );
+				retVal &= printed.Add( p.getNextMatchup().getID() );
 			}
 			fileWriter.Close();
+			return retVal && printed.Count == players.Count ? true : false;
 		}
 
 		public void printNewFile( String fileName )
 		{
 			int cols = 4 + 8;//players[0].getNumWeeks();
 			int rows = players.Count + 1;
-			System.IO.StreamWriter fileWriter = new System.IO.StreamWriter( fileName );
-			fileWriter.Write( "<?xml version=\"1.0\"?>\r\n" +
-							"<?mso-application progid=\"Excel.Sheet\"?>\r\n" +
-							"<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n" +
-							"xmlns:o=\"urn:schemas-microsoft-com:office:office\"\r\n" +
-							"xmlns:x=\"urn:schemas-microsoft-com:office:excel\"\r\n" +
-							"xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n" +
-							"xmlns:html=\"http://www.w3.org/TR/REC-html40\">\r\n" +
-							"<Worksheet ss:Name=\"AED Chess Tournamend\">\r\n" +
-			"<Table ss:ExpandedColumnCount=\"" + cols + "\" ss:ExpandedRowCount=\"" + rows + "\">\r\n" +
-//			"\" x:FullColumns=\"1\" x:FullRows=\"1\">\r\n" +
-			   "\r\n<Row>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Rank</Data></Cell>\r\n" +
-//				"\t<Cell><Data ss:Type=\"String\">ID</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Name</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Total Points</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 1</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 2</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 3</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 4</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 5</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 6</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 7</Data></Cell>\r\n" +
-				"\t<Cell><Data ss:Type=\"String\">Round 8</Data></Cell>\r\n" +
-			   "</Row>\r\n" );
+
+			string ss = "urn:schemas-microsoft-com:office:spreadsheet";
+			XmlTextWriter writer = new XmlTextWriter( fileName, System.Text.Encoding.Default );
+			writer.Formatting = Formatting.Indented;
+			writer.WriteStartDocument();
+			writer.WriteProcessingInstruction("mso-application", "progid=\"Excel.Sheet\"");
+			writer.WriteStartElement("Workbook");
+			writer.WriteAttributeString("xmlns", "",	"http://www.w3.org/2000/xmlns/", "urn:schemas-microsoft-com:office:spreadsheet"); //writer.WriteRaw("\r\n");
+			writer.WriteAttributeString("xmlns", "o",	"http://www.w3.org/2000/xmlns/", "urn:schemas-microsoft-com:office:office"); //writer.WriteRaw("\r\n");
+			writer.WriteAttributeString("xmlns", "x",	"http://www.w3.org/2000/xmlns/", "urn:schemas-microsoft-com:office:excel"); //writer.WriteRaw("\r\n");
+			writer.WriteAttributeString("xmlns", "ss", "http://www.w3.org/2000/xmlns/", ss);
+			writer.WriteAttributeString("xmlns", "html","http://www.w3.org/2000/xmlns/", "http://www.w3.org/TR/REC-html40");
+			
+			writer.WriteStartElement("Worksheet");
+			writer.WriteAttributeString("ss", "Name", ss, "AED Chess Tournament");
+			writer.WriteStartElement("Table");
+			writer.WriteAttributeString("ss", "ExpandedColumnCount", ss, cols + "");
+			writer.WriteAttributeString("ss", "ExpandedRowcount", ss, rows + "");
+
+
+			writer.WriteStartElement("Row");
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Rank");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Name");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Total Points");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Round 1");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Round 2");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Round 3");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+			writer.WriteAttributeString("ss", "Type", ss, "String");
+			writer.WriteString("Round 4");
+			writer.WriteEndElement(); writer.WriteEndElement();
+
+			writer.WriteEndElement(); //END Row
 
 			foreach( Player p in players )
-				fileWriter.Write(p.writeXML());
+ 				p.writeXML(writer, ss);
 
-			fileWriter.Write( "\t\t</Table>\r\n\t</Worksheet>\r\n</Workbook>\r\n" );
-			fileWriter.Close();
+			writer.WriteEndElement(); //END Table
+			writer.WriteEndElement(); //END Worksheet
+			writer.WriteEndElement(); //END Workbook
+			writer.WriteEndDocument();
+			writer.Close();
+
+// 			System.IO.StreamWriter fileWriter = new System.IO.StreamWriter( fileName );
+// 			fileWriter.Write("<?xml version=\"1.0\"?>\r\n" +
+// 							"<?mso-application progid=\"Excel.Sheet\"?>\r\n" +
+// 							"<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n" +
+// 							"xmlns:o=\"urn:schemas-microsoft-com:office:office\"\r\n" +
+// 							"xmlns:x=\"urn:schemas-microsoft-com:office:excel\"\r\n" +
+// 							"xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n" +
+// 							"xmlns:html=\"http://www.w3.org/TR/REC-html40\">\r\n" +
+// 							"<Worksheet ss:Name=\"AED Chess Tournamend\">\r\n" +
+// 			"<Table ss:ExpandedColumnCount=\"" + cols + "\" ss:ExpandedRowCount=\"" + rows + "\">\r\n" +
+// //			"\" x:FullColumns=\"1\" x:FullRows=\"1\">\r\n" +
+// 			   "\r\n<Row>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Rank</Data></Cell>\r\n" +
+// //				"\t<Cell><Data ss:Type=\"String\">ID</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Name</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Total Points</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 1</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 2</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 3</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 4</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 5</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 6</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 7</Data></Cell>\r\n" +
+// 				"\t<Cell><Data ss:Type=\"String\">Round 8</Data></Cell>\r\n" +
+// 			   "</Row>\r\n" );
+// 
+// 			foreach( Player p in players )
+// 				fileWriter.Write(p.writeXML());
+// 
+// 			fileWriter.Write( "\t\t</Table>\r\n\t</Worksheet>\r\n</Workbook>\r\n" );
+// 			fileWriter.Close();
 		}
     }
 }
