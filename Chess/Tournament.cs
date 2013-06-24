@@ -48,6 +48,11 @@ namespace Chess
 				if( reader != null )
 					reader.Close();
 			}
+
+			if( players.Count == 0 || players.Count % 2 != 0 )
+				throw new Exception("Uneven number of players is unsupported!");
+			if( players[0].getWeeks().Count >= players.Count - 1 )
+				throw new Exception("Impossible to match players uniquely when number of rounds exceeds n - 1 players!");
 			
 			// Sums the wins of all beaten players
 			players.Sort( Player.idCompare );
@@ -91,6 +96,7 @@ namespace Chess
 //			updateRankings();
 			List<List<Player>> mutExclLists = new List<List<Player>>();
 			double currWinCt = -1;
+			// Creates lists of players for every unique score. IE) List for score of 10,9,8...0
 			foreach( Player p in players )
 			{
 				if (p.getScore() != currWinCt)
@@ -182,6 +188,7 @@ namespace Chess
 
 								players[l].setNextMatchup( null );
 								list.Add( players[l] );
+								list.Sort();
 								j = 0;
 								k = list.Count / 2;
 								incrementer = 1;
@@ -190,7 +197,7 @@ namespace Chess
 						}
 					}
 				}
-				//Groping was uneven, let's move last member to next list.
+				//Grouping was uneven, let's move last member to next list.
 				//Can't reach this in last list as long was we have even number of players.
 				if( list.Count == 1 )
 				{
