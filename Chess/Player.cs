@@ -27,6 +27,8 @@ namespace Chess
 
 		public double beatenPlayersRecord;
 
+		public bool played(Player other, bool includeTeam = true);
+
 		public Player( XmlTextReader reader, int id )
         {
 			weeks = new List<String>();
@@ -128,10 +130,12 @@ namespace Chess
 			weeks.Add(week);
 		}
 
-		public bool played(Player other)
+		public bool played(Player other, bool includeTeam /*= true*/)
 		{
 			if( other == null )
 				return false;
+			if( includeTeam && team != null && other.team != null && team.ToLower().Equals(other.team.ToLower()) )
+				return true;
 			foreach( int i in playersBeaten )
 				if( i == other.rank ) return true;
 			foreach( int i in playersLost )
