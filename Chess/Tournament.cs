@@ -106,41 +106,14 @@ namespace Chess
 				}
 				mutExclLists[mutExclLists.Count - 1].Add( p );
 			}
-/*
-			for( int i = 0; i < mutExclLists.Count; i++ )
-			{
-				List<Player> list = mutExclLists[i];
-				if( list.Count % 2 == 1 )
-				{
-					mutExclLists[i+1].Add(list[list.Count-1]);
-					mutExclLists[i+1].Sort();
-					list.RemoveAt(list.Count-1);
-				}
-				for( int j = 0, k = list.Count / 2 + 1; j < list.Count / 2 + 1; j++, k++ )
-				{
-					list[j].setNextMatchup( list[k] );
-					list[k].setNextMatchup( list[j] );
-				}
-			}
 
-			//Now let's fix the problem where players already played each other!
-			for( int i = 0; i < mutExclLists.Count; i++ )
-			{
-				List<Player> list = mutExclLists[i];
-				for( int j = 0, k = list.Count / 2 + 1; j < list.Count / 2 + 1; j++, k++ )
-				{
-					list[j].setNextMatchup( list[k] );
-					list[k].setNextMatchup( list[j] );
-				}
-			}
-*/
 			for( int i = 0; i < mutExclLists.Count; i++ )
 			{	
 				List<Player> list = mutExclLists[i];
 				for( int j = 0, k = list.Count / 2, incrementer = 1; list.Count > 1; )
 				{
 					//Preferred matchups
-					if( j != k && !list[j].played( list[k] ) )
+					if( j != k && !list[j].played( list[k], true ) )
 					{
 						list[j].setNextMatchup( list[k] );
 						list[k].setNextMatchup( list[j] );
@@ -181,7 +154,7 @@ namespace Chess
 						{
 							if( list.Contains( players[l] ) )
 								continue;
-							if( !players[l].getNextMatchup().played( list[j] ) )
+							if( !players[l].getNextMatchup().played( list[j], false ) )
 							{
 								list[j].setNextMatchup( players[l].getNextMatchup() );
 								list.RemoveAt( j );
@@ -220,8 +193,8 @@ namespace Chess
 			{
 				if( printed.Contains( p.getID() ) )
 					continue;
-				int playAsWhite = rand.Next(1);
-				string output = (playAsWhite == 1 ? p : p.getNextMatchup()) + " vs. " + (playAsWhite == 1 ? p.getNextMatchup() : p);
+				int playAsWhite = rand.Next(2);// % 2;
+				string output = (playAsWhite == 1 ? p.ToString() : p.getNextMatchup().ToString()) + " vs. " + (playAsWhite == 1 ? p.getNextMatchup().ToString() : p.ToString());
 				fileWriter.WriteLine( output );
 				retVal &= printed.Add( p.getID() );
 				retVal &= printed.Add( p.getNextMatchup().getID() );
@@ -232,7 +205,7 @@ namespace Chess
 
 		public void printNewFile( String fileName )
 		{
-			int cols = 4 + 8;//players[0].getNumWeeks();
+			int cols = Player.columns.Count;
 			int rows = players.Count + 1;
 
 			string ss = "urn:schemas-microsoft-com:office:spreadsheet";
@@ -253,43 +226,25 @@ namespace Chess
 			writer.WriteAttributeString("ss", "ExpandedColumnCount", ss, cols + "");
 			writer.WriteAttributeString("ss", "ExpandedRowcount", ss, rows + "");
 
-
 			writer.WriteStartElement("Row");
+			if( (Player.columns.FindIndex( x => x.Equals( "Rank", StringComparison.OrdinalIgnoreCase ) )) < 0 )
+				Player.columns.Insert( 0, "Rank" );
+			if( ( Player.columns.FindIndex( x => x.Equals( "Name", StringComparison.OrdinalIgnoreCase ) ) ) < 0 )
+				Player.columns.Insert( 0, "Name" );
+			if( ( Player.columns.FindIndex( x => x.Equals( "Team", StringComparison.OrdinalIgnoreCase ) ) ) < 0 )
+				Player.columns.Insert( 0, "Team" );
+			if( ( Player.columns.FindIndex( x => x.Equals( "Total Points", StringComparison.OrdinalIgnoreCase ) ) ) < 0 )
+				Player.columns.Insert( 0, "Total Points" );
 
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Rank");
-			writer.WriteEndElement(); writer.WriteEndElement();
-
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Name");
-			writer.WriteEndElement(); writer.WriteEndElement();
-
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Total Points");
-			writer.WriteEndElement(); writer.WriteEndElement();
-
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Round 1");
-			writer.WriteEndElement(); writer.WriteEndElement();
-
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Round 2");
-			writer.WriteEndElement(); writer.WriteEndElement();
-
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Round 3");
-			writer.WriteEndElement(); writer.WriteEndElement();
-
-			writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-			writer.WriteAttributeString("ss", "Type", ss, "String");
-			writer.WriteString("Round 4");
-			writer.WriteEndElement(); writer.WriteEndElement();
+			foreach( String s in Player.columns )
+			{
+				writer.WriteStartElement( "Cell" );
+				writer.WriteStartElement( "Data" );
+				writer.WriteAttributeString( "ss", "Type", ss, "String" );
+				writer.WriteString( s );
+				writer.WriteEndElement();
+				writer.WriteEndElement();
+			}
 
 			writer.WriteEndElement(); //END Row
 
@@ -299,40 +254,8 @@ namespace Chess
 			writer.WriteEndElement(); //END Table
 			writer.WriteEndElement(); //END Worksheet
 			writer.WriteEndElement(); //END Workbook
-			writer.WriteEndDocument();
+			writer.WriteEndDocument();//END Document
 			writer.Close();
-
-// 			System.IO.StreamWriter fileWriter = new System.IO.StreamWriter( fileName );
-// 			fileWriter.Write("<?xml version=\"1.0\"?>\r\n" +
-// 							"<?mso-application progid=\"Excel.Sheet\"?>\r\n" +
-// 							"<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n" +
-// 							"xmlns:o=\"urn:schemas-microsoft-com:office:office\"\r\n" +
-// 							"xmlns:x=\"urn:schemas-microsoft-com:office:excel\"\r\n" +
-// 							"xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\"\r\n" +
-// 							"xmlns:html=\"http://www.w3.org/TR/REC-html40\">\r\n" +
-// 							"<Worksheet ss:Name=\"AED Chess Tournamend\">\r\n" +
-// 			"<Table ss:ExpandedColumnCount=\"" + cols + "\" ss:ExpandedRowCount=\"" + rows + "\">\r\n" +
-// //			"\" x:FullColumns=\"1\" x:FullRows=\"1\">\r\n" +
-// 			   "\r\n<Row>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Rank</Data></Cell>\r\n" +
-// //				"\t<Cell><Data ss:Type=\"String\">ID</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Name</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Total Points</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 1</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 2</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 3</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 4</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 5</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 6</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 7</Data></Cell>\r\n" +
-// 				"\t<Cell><Data ss:Type=\"String\">Round 8</Data></Cell>\r\n" +
-// 			   "</Row>\r\n" );
-// 
-// 			foreach( Player p in players )
-// 				fileWriter.Write(p.writeXML());
-// 
-// 			fileWriter.Write( "\t\t</Table>\r\n\t</Worksheet>\r\n</Workbook>\r\n" );
-// 			fileWriter.Close();
 		}
     }
 }

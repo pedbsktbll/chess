@@ -22,26 +22,24 @@ namespace Chess
  		private List<int> playersTied;
 		private double score;
 		private Player nextMatchup;
-		private List<String> rowValues;
-//		private List<Player> preferredPlayers;
+		private /*Hashtable*/Dictionary<String,String> rowValues;
 
 		public double beatenPlayersRecord;
-
-		public bool played(Player other, bool includeTeam = true);
 
 		public Player( XmlTextReader reader, int id )
         {
 			weeks = new List<String>();
-			rowValues = new List<String>();
+			rowValues = new Dictionary<String, String>();//Hashtable();
 			playersBeaten = new List<int>();
  			playersLost = new List<int>();
  			playersTied = new List<int>();
 			score = 0;
 			beatenPlayersRecord = 0;
 			nextMatchup = null;
-//			preferredPlayers = new List<Player>();
 
 			this.id = id;
+			rank = -1;
+			name = office = team = null;
 
 			// Either assume Rank, Name, Team or use columns (preferred):
 			if( columns.Count > 0 )
@@ -50,7 +48,7 @@ namespace Chess
 				{
 					for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
 					string value = reader.Value;
-					rowValues.Add(value);
+					rowValues.Add( columns[i], value );
 
 					if( columns[i].ToLower().Equals("rank") )
 						rank = Int32.Parse(value);
@@ -137,13 +135,11 @@ namespace Chess
 			if( includeTeam && team != null && other.team != null && team.ToLower().Equals(other.team.ToLower()) )
 				return true;
 			foreach( int i in playersBeaten )
-				if( i == other.rank ) return true;
+				if( i == other.id/*rank*/ ) return true;
 			foreach( int i in playersLost )
-				if( i == other.rank ) return true;
+				if( i == other.id/*rank*/ ) return true;
 			foreach( int i in playersTied )
-				if( i == other.rank ) return true;
-// 			foreach (String s in weeks)
-// 				if (s.Substring(1).Equals(other.rank.ToString())) return true;
+				if( i == other.id/*rank */) return true;
 			return false;
 		}
 
@@ -212,10 +208,6 @@ namespace Chess
 		{
 			return nextMatchup;
 		}
-/*		public void addPreferred( Player p )
-		{
-			preferredPlayers.Add( p );
-		}*/
 
 		public int getNumWeeks()
 		{
@@ -232,123 +224,89 @@ namespace Chess
 			return weeks;
 		}
 
-		public string ToString()
+		override public string ToString()
 		{
 			return "#" + rank + " " + name;
-		}
-
-		public string writeXML()
-		{
-			string retString = "<Row>\r\n\t<Cell><Data ss:Type=\"Number\">" + rank + "</Data></Cell>\r\n"+
-			"\t<Cell><Data ss:Type=\"String\">" + name + "</Data></Cell>\r\n" +
-			"\t<Cell><Data ss:Type=\"Number\">" + score + "</Data></Cell>\r\n";
-
-			foreach (String s in weeks)
-				retString += "\t<Cell><Data ss:Type=\"String\">" + s + "</Data></Cell>\r\n";
-
-			retString+="</Row>\r\n";
-			return retString;
 		}
 
 		public void writeXML(XmlTextWriter writer, string ss)
 		{
 			writer.WriteStartElement("Row");
-
+			string strOutValue = null;
+		
 			// Either assume Rank, Name, Team or use columns (preferred):
-			if( columns.Count > 0 )
+			int roundNum = 0;
+			for( int i = 0; i < columns.Count; i++ )
 			{
-				int roundNum = 0;
-				for( int i = 0; i < columns.Count; i++ )
+				if( columns[i].ToLower().StartsWith( "rank" ) )
 				{
-					if( columns[i].ToLower().Equals("rank") )
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "Number");
-						writer.WriteValue(rank);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
-					else if( columns[i].ToLower().Equals("name") )
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "String");
-						writer.WriteValue(name);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
-					else if( columns[i].ToLower().Equals("office") )
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "String");
-						writer.WriteValue(office);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
-					else if( columns[i].ToLower().Equals("team") )
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "String");
-						writer.WriteValue(team);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
-					else if( columns[i].ToLower().Equals("id") )
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "Number");
-						writer.WriteValue(id);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
-					else if( columns[i].ToLower().StartsWith("round") )
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "String");
-						writer.WriteValue(weeks[roundNum++]);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
-					else
-					{
-						writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-						writer.WriteAttributeString("ss", "Type", ss, "String");
-						writer.WriteValue(rowValues[i]);
-						writer.WriteEndElement(); writer.WriteEndElement();
-					}
+					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+					writer.WriteAttributeString("ss", "Type", ss, "Number");
+					writer.WriteValue(rank);
+					writer.WriteEndElement(); writer.WriteEndElement();
 				}
-			}
-			else
-			{
-				// Rank
-				writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-				writer.WriteAttributeString("ss", "Type", ss, "Number");
-				writer.WriteValue(rank);
-				writer.WriteEndElement(); writer.WriteEndElement();
-
-				// Name
-				writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-				writer.WriteAttributeString("ss", "Type", ss, "String");
-				writer.WriteValue(name);
-				writer.WriteEndElement(); writer.WriteEndElement();
-
-				// Team
-				writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-				writer.WriteAttributeString("ss", "Type", ss, "String");
-				writer.WriteValue(team);
-				writer.WriteEndElement(); writer.WriteEndElement();
-
-				// Score
-				writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
-				writer.WriteAttributeString("ss", "Type", ss, "Number");
-				writer.WriteValue(score);
-				writer.WriteEndElement(); writer.WriteEndElement();
-
-				foreach( String s in weeks )
+				else if( columns[i].ToLower().StartsWith( "name" ) )
 				{
 					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
 					writer.WriteAttributeString("ss", "Type", ss, "String");
-					writer.WriteValue(s);
+					writer.WriteValue(name);
+					writer.WriteEndElement(); writer.WriteEndElement();
+				}
+				else if( columns[i].ToLower().StartsWith( "office" ) )
+				{
+					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+					writer.WriteAttributeString("ss", "Type", ss, "String");
+					writer.WriteValue(office);
+					writer.WriteEndElement(); writer.WriteEndElement();
+				}
+				else if( columns[i].ToLower().StartsWith( "team" ) )
+				{
+					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+					writer.WriteAttributeString("ss", "Type", ss, "String");
+					writer.WriteValue(team);
+					writer.WriteEndElement(); writer.WriteEndElement();
+				}
+				else if( columns[i].ToLower().StartsWith( "id" ) )
+				{
+					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+					writer.WriteAttributeString("ss", "Type", ss, "Number");
+					writer.WriteValue(id);
+					writer.WriteEndElement(); writer.WriteEndElement();
+				}
+				else if( columns[i].ToLower().StartsWith( "total points" ) )
+				{
+					writer.WriteStartElement( "Cell" );
+					writer.WriteStartElement( "Data" );
+					writer.WriteAttributeString( "ss", "Type", ss, "String" );
+					writer.WriteValue( score );
+					writer.WriteEndElement();
+					writer.WriteEndElement();
+				}
+				else if( columns[i].ToLower().StartsWith("round") )
+				{
+					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+					writer.WriteAttributeString("ss", "Type", ss, "String");
+					writer.WriteValue(weeks[roundNum++].ToUpper());
+					writer.WriteEndElement(); writer.WriteEndElement();
+				}
+				else if( rowValues.ContainsKey(columns[i]) && rowValues.TryGetValue(columns[i], out strOutValue))
+				{
+					writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+					writer.WriteAttributeString("ss", "Type", ss, "String");
+					writer.WriteValue(strOutValue);
 					writer.WriteEndElement(); writer.WriteEndElement();
 				}
 			}
 
+			for( ; roundNum < weeks.Count; roundNum++ )
+			{
+				writer.WriteStartElement("Cell"); writer.WriteStartElement("Data");
+				writer.WriteAttributeString("ss", "Type", ss, "String");
+				writer.WriteValue("Round " + (roundNum + 1));
+				writer.WriteEndElement(); writer.WriteEndElement();
+			}
+
 			writer.WriteEndElement(); // END Row
 		}
-
-//		private void writeXMLCell(XmlTextWriter writer, string ss, string varType, )
     }
 }
