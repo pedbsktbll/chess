@@ -205,8 +205,18 @@ namespace Chess
 
 		public void printNewFile( String fileName )
 		{
+			// Update Columns:
+			if( (Player.columns.FindIndex(x => x.Equals("Rank", StringComparison.OrdinalIgnoreCase))) < 0 )
+				Player.columns.Insert(0, "Rank");
+			if( (Player.columns.FindIndex(x => x.Equals("Name", StringComparison.OrdinalIgnoreCase))) < 0 )
+				Player.columns.Insert(1, "Name");
+// 			if( (Player.columns.FindIndex(x => x.Equals("Team", StringComparison.OrdinalIgnoreCase))) < 0 )
+// 				Player.columns.Insert(2, "Team");
+			if( (Player.columns.FindIndex(x => x.Equals("Total Points", StringComparison.OrdinalIgnoreCase))) < 0 )
+				Player.columns.Insert(3, "Total Points");
+
 			int cols = Player.columns.Count;
-			int rows = players.Count + 1;
+			int rows = players.Count;// +1;
 
 			string ss = "urn:schemas-microsoft-com:office:spreadsheet";
 			XmlTextWriter writer = new XmlTextWriter( fileName, System.Text.Encoding.Default );
@@ -227,15 +237,6 @@ namespace Chess
 			writer.WriteAttributeString("ss", "ExpandedRowcount", ss, rows + "");
 
 			writer.WriteStartElement("Row");
-			if( (Player.columns.FindIndex( x => x.Equals( "Rank", StringComparison.OrdinalIgnoreCase ) )) < 0 )
-				Player.columns.Insert( 0, "Rank" );
-			if( ( Player.columns.FindIndex( x => x.Equals( "Name", StringComparison.OrdinalIgnoreCase ) ) ) < 0 )
-				Player.columns.Insert( 0, "Name" );
-			if( ( Player.columns.FindIndex( x => x.Equals( "Team", StringComparison.OrdinalIgnoreCase ) ) ) < 0 )
-				Player.columns.Insert( 0, "Team" );
-			if( ( Player.columns.FindIndex( x => x.Equals( "Total Points", StringComparison.OrdinalIgnoreCase ) ) ) < 0 )
-				Player.columns.Insert( 0, "Total Points" );
-
 			foreach( String s in Player.columns )
 			{
 				writer.WriteStartElement( "Cell" );
@@ -245,7 +246,6 @@ namespace Chess
 				writer.WriteEndElement();
 				writer.WriteEndElement();
 			}
-
 			writer.WriteEndElement(); //END Row
 
 			foreach( Player p in players )

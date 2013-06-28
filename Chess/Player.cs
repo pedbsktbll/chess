@@ -46,7 +46,26 @@ namespace Chess
 			{
 				for( int i = 0; i < columns.Count; i++ )
 				{
-					for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() ) ;
+					for( reader.Read(); reader.NodeType != XmlNodeType.Text; reader.Read() )
+					{
+						if( reader.Name.Equals("Row") )
+							break;
+						if( reader.Name.Equals("Cell") )
+						{
+							if( reader.GetAttribute("ss:Index") != null )
+							{
+								string test = reader.GetAttribute("ss:Index");
+//								break;
+							}
+// 							if( reader.HasAttributes )
+// 							{
+// 								break;
+// 								string s = reader.Prefix;
+// 							}
+						}
+					}
+					if( reader.Name.Equals("Row") )
+						break;
 					string value = reader.Value;
 					rowValues.Add( columns[i], value );
 
